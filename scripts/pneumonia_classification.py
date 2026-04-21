@@ -1,5 +1,3 @@
-
-
 from __future__ import print_function
 
 import keras
@@ -10,6 +8,7 @@ from keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Rescalin
 from keras.optimizers import RMSprop,Adam
 import matplotlib.pyplot as plt
 import numpy as np
+from keras.layers import RandomFlip, RandomRotation, RandomZoom, RandomTranslation
 
 
 batch_size = 12
@@ -55,9 +54,18 @@ with tf.device('/gpu:0'):
             plt.title(class_names[labels[i].numpy()])
             plt.axis("off")
     plt.show()
+    
+    # data augmentation to increase the size of the training dataset and 
+    # reduce overfitting by introducing more variety in the training samples
+    data_augmentation = tf.keras.Sequential([
+        RandomRotation(0.05),
+        RandomZoom(0.1),
+        RandomTranslation(0.05, 0.05)
+    ])
 
     #create model
     model = tf.keras.models.Sequential([
+        data_augmentation,
         Rescaling(1.0/255),
         Conv2D(16, (3,3), activation = 'relu', input_shape = (img_height,img_width, img_channels)),
         MaxPooling2D(2,2),
@@ -65,9 +73,9 @@ with tf.device('/gpu:0'):
         MaxPooling2D(2,2),
         Conv2D(32, (3,3), activation = 'relu'),
         MaxPooling2D(2,2),
-        Flatten(), # flatten multidimensional outputs into single dimension for input to dense fully connected layers
-        Dense(512, activation = 'relu'),
-        Dropout(0.2),
+        GlobalAveragePooling2D(),
+        Dense(128, activation='relu'),
+        Dropout(0.3),
         Dense(num_classes, activation = 'softmax')
     ])
 
@@ -92,7 +100,7 @@ with tf.device('/gpu:0'):
     score = model.evaluate(test_ds, batch_size=batch_size)
     print('Test accuracy:', score[1])
 
-    
+
     if fit:
         plt.plot(history.history['accuracy'])
         plt.plot(history.history['val_accuracy'])

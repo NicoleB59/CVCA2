@@ -12,7 +12,7 @@ from keras.layers import RandomFlip, RandomRotation, RandomZoom, RandomTranslati
 from keras.applications import MobileNetV2
 from keras.layers import Input
 from sklearn.utils.class_weight import compute_class_weight
-
+from sklearn.metrics import classification_report, confusion_matrix
 
 batch_size = 12
 num_classes = 3
@@ -140,6 +140,21 @@ with tf.device('/gpu:0'):
     #if shuffle=True when creating the dataset, samples will be chosen randomly   
     score = model.evaluate(test_ds, batch_size=batch_size)
     print('Test accuracy:', score[1])
+    
+    # Precision, Recall, F1-score
+    y_true = []
+    y_pred = []
+
+    for images, labels in test_ds:
+        predictions = model.predict(images, verbose=0)
+        y_true.extend(labels.numpy())
+        y_pred.extend(np.argmax(predictions, axis=1))
+
+    print("\nClassification Report:")
+    print(classification_report(y_true, y_pred, target_names=class_names))
+
+    print("\nConfusion Matrix:")
+    print(confusion_matrix(y_true, y_pred))
 
 
     if fit:

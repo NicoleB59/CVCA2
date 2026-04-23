@@ -13,6 +13,7 @@ from keras.applications import MobileNetV2
 from keras.layers import Input
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import classification_report, confusion_matrix
+from tf_explain.core.grad_cam import GradCAM
 
 batch_size = 12
 num_classes = 3
@@ -124,7 +125,7 @@ with tf.device('/gpu:0'):
                   metrics=['accuracy'])
     
     earlystop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss',patience=5)
-    save_callback = tf.keras.callbacks.ModelCheckpoint("pneumonia.keras",save_freq='epoch',save_best_only=True)
+    save_callback = tf.keras.callbacks.ModelCheckpoint("pneumonia_transfer.keras",save_freq='epoch',save_best_only=True)
 
     if fit:
         history = model.fit(
@@ -175,3 +176,25 @@ with tf.device('/gpu:0'):
             plt.title('Actual:' + class_names[labels[i].numpy()]+ '\nPredicted:{} {:.2f}%'.format(class_names[np.argmax(prediction)], 100 * np.max(prediction)))
             plt.axis("off")
     plt.show()
+    
+    explainer = GradCAM()
+
+    for images, labels in test_ds.take(1):
+        image = images[0].numpy()
+        true_label = int(labels[0].numpy())
+
+        prediction = model.predict(np.expand_dims(image, axis=0), verbose=0)
+        predicted_class = np.argmax(prediction)
+
+        heatmap = explainer.explain(
+            validation_data=(np.expand_dims(image, axis=0), np.array([predicted_class])),
+            model=model,
+            class_index=predicted_class
+        )
+
+        plt.figure(figsize=(6,6))
+        plt.imshow(image.astype("uint8"))          # X-ray
+        plt.imshow(heatmap, cmap='jet', alpha=0.5) # heatmap overlay
+        plt.title(f"Grad-CAM\nActual: {class_names[true_label]} | Predicted: {class_names[predicted_class]}")
+        plt.axis("off")
+        plt.show()
